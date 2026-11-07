@@ -357,10 +357,10 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .link:hover span { color: #fff; }
 
 
-.lover-wrap { display: flex; flex-direction: column; gap: 14px; }
+.lover-wrap { display: flex; flex-direction: column; gap: 10px; }
 .lover {
   position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-  padding: 26px 24px; text-decoration: none; color: var(--fg);
+  padding: 13px 18px; text-decoration: none; color: var(--fg);
   border: 1px solid var(--red); background: linear-gradient(135deg, rgba(122, 15, 31, 0.55), rgba(20, 4, 8, 0.7));
   box-shadow: 0 0 34px rgba(179, 18, 43, 0.45), inset 0 0 30px rgba(179, 18, 43, 0.25);
   animation: lovepulse 3.2s ease-in-out infinite;
@@ -368,9 +368,9 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .lover:hover { background: linear-gradient(135deg, var(--red), var(--blood)); }
 .lover .tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.24em; color: var(--rose); display: flex; align-items: center; gap: 10px; }
 .lover .tag i { font-style: normal; color: var(--red); font-size: 16px; animation: beat 1.3s ease-in-out infinite; display: inline-block; }
-.lover .nick { font-family: var(--font-serif); font-size: clamp(24px, 6vw, 34px); letter-spacing: 0.04em; overflow-wrap: anywhere; min-width: 0; }
+.lover .nick { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.06em; overflow-wrap: anywhere; min-width: 0; }
 .lover .go { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; color: var(--rose); }
-.lover-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.lover-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .abc {
   position: relative; display: table; margin: 4px 0 26px 4px; padding: 10px 18px;
   font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; color: var(--fg);
@@ -491,6 +491,10 @@ footer { font-size: 12px; color: var(--muted); display: flex; flex-direction: co
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .dot, .slot .cam::before { opacity: 1; }
 }
+
+#shield { position: fixed; inset: 0; z-index: 2147483647; background: #000; display: none; }
+#shield.on { display: block; }
+@media print { html, body { display: none !important; } }
 </style>
 </head>
 <body>
@@ -982,6 +986,38 @@ footer { font-size: 12px; color: var(--muted); display: flex; flex-direction: co
       if (window.outerWidth - window.innerWidth > 200 || window.outerHeight - window.innerHeight > 300) lock();
     }, 1000);
   }
+})();
+</script>
+
+<div id="shield" aria-hidden="true"></div>
+<script>
+(function () {
+  var sh = document.getElementById("shield");
+  if (!sh) return;
+  var timer = 0;
+  function cover(ms) {
+    sh.classList.add("on");
+    clearTimeout(timer);
+    if (ms) timer = setTimeout(function () { if (!document.hidden && document.hasFocus()) sh.classList.remove("on"); }, ms);
+  }
+  function uncover() { clearTimeout(timer); sh.classList.remove("on"); }
+  window.addEventListener("blur", function () { cover(0); });
+  window.addEventListener("focus", uncover);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) cover(0); else uncover(); });
+  window.addEventListener("pagehide", function () { cover(0); });
+  window.addEventListener("beforeprint", function () { cover(0); });
+  window.addEventListener("afterprint", uncover);
+  function shot(e) {
+    var k = (e.key || "").toLowerCase();
+    var hit = k === "printscreen" || k === "snapshot" || e.keyCode === 44 ||
+      ((e.metaKey || e.ctrlKey) && e.shiftKey && (k === "s" || k === "3" || k === "4" || k === "5" || k === "#" || k === "$" || k === "%"));
+    if (!hit) return;
+    cover(2500);
+    try { navigator.clipboard && navigator.clipboard.writeText(" "); } catch (x) {}
+    try { e.preventDefault(); } catch (x2) {}
+  }
+  window.addEventListener("keydown", shot, true);
+  window.addEventListener("keyup", shot, true);
 })();
 </script>
 </body>
