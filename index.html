@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>제노 소개</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700&family=Noto+Sans+KR:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Concept: a hidden-camera recording. Fixed viewfinder HUD (REC, timecode, channel), drifting scanlines, film grain, vignette, flicker. Pages are "channels": switching fires a static burst and a glitch tune-in. Single committed dark-red look. */
+:root {
+  color-scheme: dark;
+  --bg: #0d0205;
+  --surface: #1a060b;
+  --blood: #7a0f1f;
+  --red: #b3122b;
+  --rose: #e08a96;
+  --fg: #f0dde0;
+  --muted: #a98a90;
+  --line: #3f0e19;
+  --font-name: "Noto Serif KR", serif;
+  --font-body: "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.slot img { pointer-events: none; -webkit-user-drag: none; }
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(110% 50% at 50% -8%, #3a0712 0%, transparent 62%);
+  background-repeat: no-repeat;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.7;
+  padding-block: 56px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+
+/* ---------- camera overlay ---------- */
+.fx { position: fixed; inset: 0; pointer-events: none; }
+.vig { z-index: 42; background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, 0.72) 100%); }
+
+.hud {
+  z-index: 45; display: grid; grid-template-columns: 1fr auto; grid-template-rows: 1fr auto;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 12px)
+    max(16px, env(safe-area-inset-right, 0px))
+    calc(env(safe-area-inset-bottom, 0px) + 12px)
+    max(16px, env(safe-area-inset-left, 0px));
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+}
+.hud::before, .hud::after { content: ""; position: absolute; left: 0; right: 0; height: calc(env(safe-area-inset-top, 0px) + 40px); z-index: -1; }
+.hud::before { top: 0; background: linear-gradient(to bottom, rgba(13, 2, 5, 0.92), transparent); }
+.hud::after { bottom: 0; height: calc(env(safe-area-inset-bottom, 0px) + 40px); background: linear-gradient(to top, rgba(13, 2, 5, 0.92), transparent); }
+.hud .tl { grid-column: 1; grid-row: 1; align-self: start; display: flex; gap: 8px; align-items: center; }
+.hud .tr { grid-column: 2; grid-row: 1; align-self: start; color: var(--rose); }
+.hud .bl { grid-column: 1; grid-row: 2; align-self: end; color: var(--muted); }
+.hud .br { grid-column: 2; grid-row: 2; align-self: end; color: var(--muted); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red); animation: blink 1.1s steps(1) infinite; }
+.rec { color: var(--red); font-weight: 400; }
+.hud .corner { position: absolute; width: 18px; height: 18px; border: 1.5px solid rgba(240, 221, 224, 0.55); }
+.hud .c1 { top: calc(env(safe-area-inset-top, 0px) + 6px); left: max(8px, env(safe-area-inset-left, 0px)); border-right: 0; border-bottom: 0; }
+.hud .c2 { top: calc(env(safe-area-inset-top, 0px) + 6px); right: max(8px, env(safe-area-inset-right, 0px)); border-left: 0; border-bottom: 0; }
+.hud .c3 { bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); left: max(8px, env(safe-area-inset-left, 0px)); border-right: 0; border-top: 0; }
+.hud .c4 { bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); right: max(8px, env(safe-area-inset-right, 0px)); border-left: 0; border-top: 0; }
+
+
+/* signature logo watermark: tinted rose, large and faint, behind everything */
+.wm {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; background: var(--rose);
+  -webkit-mask-image: var(--wm); mask-image: var(--wm);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: right 3vw center; mask-position: right 3vw center;
+  -webkit-mask-size: min(100vw, 720px) auto; mask-size: min(100vw, 720px) auto;
+  opacity: 0.08; animation: wmdrift 16s ease-in-out infinite alternate;
+}
+main { position: relative; z-index: 1; }
+@keyframes wmdrift {
+  from { transform: translateY(-12px) scale(1); opacity: 0.06; }
+  to { transform: translateY(12px) scale(1.03); opacity: 0.1; }
+}
+
+/* ---------- age gate: video-start colour bars, then a loading meter, then the question ---------- */
+.gate {
+  position: fixed; inset: 0; z-index: 100; overflow-y: auto; display: flex; background: #000;
+  padding-block: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.gate.out { animation: gateout 0.45s ease forwards; }
+.gate-bars {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    linear-gradient(to right, #c0c0c0 0 14.286%, #c0c000 0 28.571%, #00c0c0 0 42.857%, #00c000 0 57.143%, #c000c0 0 71.429%, #c00000 0 85.714%, #0000c0 0) 0 0 / 100% 70% no-repeat,
+    linear-gradient(to right, #0000c0 0 14.286%, #131313 0 28.571%, #c000c0 0 42.857%, #131313 0 57.143%, #00c0c0 0 71.429%, #131313 0 85.714%, #c0c0c0 0) 0 70% / 100% 8% no-repeat,
+    linear-gradient(to right, #00214c 0 17%, #ffffff 0 34%, #32006a 0 51%, #090909 0) 0 78% / 100% 22% no-repeat,
+    #000;
+  animation: barshake 5s steps(1) infinite;
+}
+.gate::before {
+  content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.26) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 38%, rgba(40, 0, 8, 0.7) 100%);
+}
+.gate::after {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; height: 120px; z-index: 1; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.16), transparent);
+  animation: roll 6s linear infinite;
+}
+.osd {
+  position: fixed; z-index: 3; font-family: var(--font-mono); font-size: 15px; letter-spacing: 0.1em; color: #fff;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; pointer-events: none;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+}
+.osd.l { left: max(16px, env(safe-area-inset-left, 0px)); }
+.osd.r { right: max(16px, env(safe-area-inset-right, 0px)); }
+.gate-box {
+  position: relative; z-index: 2; margin: auto; width: min(100%, 340px);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px;
+  background: rgba(13, 2, 5, 0.92); border: 1px solid var(--red); padding: 26px 24px;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.75), 0 0 0 5px rgba(13, 2, 5, 0.45);
+}
+.gate-box > * { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.gate-box > *:nth-child(2) { animation-delay: 0.12s; }
+.gate-box > *:nth-child(3) { animation-delay: 0.24s; }
+.gate-box > *:nth-child(4) { animation-delay: 0.36s; }
+.stand { margin: 0; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.2em; color: var(--fg); }
+.meter { width: 100%; height: 10px; border: 1px solid var(--red); padding: 1px; }
+.meter i { display: block; height: 100%; width: 0; background: var(--red); box-shadow: 0 0 12px var(--red); transition: width 0.15s linear; }
+.pct { margin: 0; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.2em; color: var(--muted); }
+.badge {
+  flex: none; width: 62px; height: 62px; border-radius: 50%; border: 1.5px solid var(--red);
+  display: grid; place-items: center; color: var(--rose);
+  font-family: var(--font-mono); font-size: 19px; letter-spacing: 0.02em;
+  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both, pulse 2.6s ease-in-out 0.8s infinite;
+}
+.gate-title { font-family: var(--font-name); font-weight: 700; font-size: 21px; line-height: 1.55; margin: 0; text-wrap: balance; }
+.gate-title span { display: block; }
+.gate-head { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.gate-note { margin: 0; color: var(--rose); font-size: 14px; line-height: 1.6; text-align: left; }
+.gate-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.gate button {
+  font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.14em; cursor: pointer;
+  border: 1px solid var(--red); color: var(--fg); background: transparent; padding: 12px 28px; min-width: 110px;
+}
+.gate button.yes { background: var(--red); color: #fff; }
+.gate button:hover { box-shadow: 0 0 22px rgba(179, 18, 43, 0.6); }
+.gate button:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+@keyframes gateout { to { opacity: 0; visibility: hidden; } }
+@keyframes barshake {
+  0%, 91%, 100% { transform: none; filter: none; }
+  92% { transform: translateX(8px); filter: saturate(1.5) brightness(1.2); }
+  94% { transform: translateX(-10px); }
+  96% { transform: translateX(4px); filter: brightness(0.85); }
+}
+
+/* ---------- content ---------- */
+.top { display: flex; flex-direction: column; gap: 16px; }
+.bar {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+}
+.bar b { font-weight: 400; color: var(--rose); border: 1px solid var(--red); padding: 2px 10px; }
+nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+nav a {
+  min-width: 0; text-align: center; text-decoration: none; color: var(--muted);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 10px 2px; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s;
+}
+@media (min-width: 480px) {
+  nav a { font-size: 12px; letter-spacing: 0.14em; padding: 10px 8px; }
+}
+nav a:hover { color: var(--fg); }
+nav a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--red); text-shadow: 0 0 12px var(--red); }
+nav a:focus-visible, .next:focus-visible, .link:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+
+.view { display: flex; flex-direction: column; gap: 36px; }
+.view.enter { animation: soft 0.5s ease both; }
+.view.enter > * { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.view.enter > *:nth-child(2) { animation-delay: 0.12s; }
+.view.enter > *:nth-child(3) { animation-delay: 0.24s; }
+
+.who { display: flex; flex-direction: column; gap: 18px; }
+.namerow { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.nameline { display: flex; align-items: center; gap: 12px; }
+h1 { font-family: var(--font-name); font-weight: 700; font-size: clamp(40px, 10vw, 60px); line-height: 1.15; margin: 0; }
+.id { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.06em; color: var(--rose); text-decoration: none; }
+a.id:hover { color: var(--fg); text-shadow: 0 0 12px var(--red); }
+a.id:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+
+.adult {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.12em; color: var(--rose);
+  border: 1px solid var(--red); padding: 1px 12px 2px; background: var(--surface);
+  animation: pulse 2.6s ease-in-out infinite;
+}
+.info { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.info .row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: baseline; }
+.info dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; color: var(--red); }
+.info dd { margin: 0; font-size: 16px; font-weight: 400; color: var(--fg); }
+.view.enter .info .row { animation: flyL 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0.5s); }
+.info .row:nth-child(1) { --d: 0.5s; }
+.info .row:nth-child(2) { --d: 0.62s; }
+.info .row:nth-child(3) { --d: 0.74s; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.tags li { font-size: 14px; font-weight: 400; padding: 3px 14px 4px; border: 1px solid var(--line); background: var(--surface); }
+.view.enter .tags li {
+  animation: pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.3) both, bob var(--b, 3.8s) ease-in-out infinite;
+  animation-delay: var(--d, 0.3s), calc(var(--d, 0.3s) + 0.6s);
+}
+.view.enter .tags li:nth-child(1) { --d: 0.3s; --b: 3.6s; }
+.view.enter .tags li:nth-child(2) { --d: 0.4s; --b: 4.2s; }
+.view.enter .tags li:nth-child(3) { --d: 0.5s; --b: 3.9s; }
+.view.enter .tags li:nth-child(4) { --d: 0.6s; --b: 4.6s; }
+.view.enter .tags li:nth-child(5) { --d: 0.7s; --b: 4.0s; }
+.view.enter .tags.trait li { animation-name: pop, shake; animation-duration: 0.5s, 5s; }
+.view.enter .tags.dislike li { animation-name: pop, flick; animation-duration: 0.5s, 6s; }
+
+/* emphasized text */
+.namerow { animation: bob 5.5s ease-in-out infinite; }
+.view.enter h1 { animation: flyL 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.view.enter .id {
+  display: inline-block; align-self: flex-start; overflow: hidden; white-space: nowrap; vertical-align: bottom;
+  border-right: 2px solid var(--rose);
+  animation: typing 1.2s steps(10) 0.7s both, caret 0.8s steps(1) 1.9s infinite;
+}
+.view.enter h2, .view.enter .label { animation: track 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both; }
+.view.enter .gallery .slot { animation: flyIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: var(--d, 0.2s); }
+.gallery .slot:nth-child(odd) { --fx: -70px; }
+.gallery .slot:nth-child(even) { --fx: 70px; }
+.gallery .slot:nth-child(1) { --d: 0.15s; }
+.gallery .slot:nth-child(2) { --d: 0.25s; }
+.gallery .slot:nth-child(3) { --d: 0.35s; }
+.gallery .slot:nth-child(4) { --d: 0.45s; }
+.gallery .slot:nth-child(5) { --d: 0.55s; }
+.gallery .slot:nth-child(6) { --d: 0.65s; }
+.slot img { animation: drift 14s ease-in-out infinite alternate, imgglitch 7s infinite; animation-delay: 0s, var(--g, 0s); }
+.slot .ph { animation: imgglitch 7s infinite; animation-delay: var(--g, 0s); }
+.slot .snow {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+  image-rendering: pixelated; mix-blend-mode: screen; opacity: 0.14;
+  animation: snowburst 7s infinite; animation-delay: var(--g, 0s);
+}
+.slot .lines {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.28) 0 1px, transparent 1px 3px);
+}
+.gallery .slot:nth-child(2) { --g: -1.4s; }
+.gallery .slot:nth-child(3) { --g: -2.8s; }
+.gallery .slot:nth-child(4) { --g: -4.2s; }
+.gallery .slot:nth-child(5) { --g: -5.6s; }
+.gallery .slot:nth-child(6) { --g: -0.7s; }
+.thumbs .slot:nth-child(1) { --g: -3.5s; }
+.bar b, .link { animation: pulse 2.6s ease-in-out infinite; }
+.arr { display: inline-block; animation: nudge 1.6s ease-in-out infinite; }
+.tags.trait li { border-color: var(--red); color: var(--fg); }
+.tags.like li { border-color: var(--blood); color: var(--rose); }
+.tags.dislike li { border-style: dashed; color: var(--muted); }
+
+h2 {
+  font-family: var(--font-mono); font-weight: 400; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--red); margin: 0 0 16px; display: flex; align-items: center; gap: 14px;
+}
+h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* image slots: each one reads as a live camera feed */
+.slot {
+  position: relative; margin: 0; overflow: hidden;
+  background: linear-gradient(160deg, #320912 0%, #14040a 58%, #240710 100%);
+  border: 1px solid var(--line);
+}
+.slot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.slot .ph {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+  padding: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+}
+.slot .ph::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 36%;
+  background: linear-gradient(to bottom, transparent, rgba(179, 18, 43, 0.16), transparent);
+  animation: roll 5s linear infinite;
+}
+.slot .ph i { font-style: normal; color: var(--red); }
+.slot .cam {
+  position: absolute; top: 10px; left: 12px; z-index: 2; display: flex; gap: 6px; align-items: center;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg);
+  text-shadow: 0 0 6px #000;
+}
+.slot .cam::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--red); animation: blink 1.1s steps(1) infinite; }
+
+.hero .slot { aspect-ratio: 3 / 2; }
+
+/* portrait photos: shown whole, over a blurred copy of themselves */
+.slot .blurbg { position: absolute; inset: -12%; background-size: cover; background-position: center; filter: blur(22px) brightness(0.5) saturate(1.25); opacity: 0; pointer-events: none; }
+.slot.p .blurbg, .slot.reel.pt .blurbg { opacity: 1; }
+.slot.p img { object-fit: contain; position: relative; z-index: 1; }
+.slot.reel img.p { object-fit: contain; }
+
+/* main reel: photos play like a video */
+.slot.reel { cursor: pointer; }
+.slot.reel img { position: absolute; inset: 0; opacity: 0; animation: none; }
+.slot.reel img.on { opacity: 1; animation: reelin 0.5s steps(6) both, reelkb 9s ease-out both; }
+.slot.reel.paused img.on { animation-play-state: paused; }
+.slot.reel.cut .snow { animation: reelsnow 0.4s steps(5) 1; }
+.reel-ui {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; align-items: center; gap: 10px;
+  padding: 28px 12px 10px; cursor: default;
+  background: linear-gradient(to top, rgba(13, 2, 5, 0.88), transparent);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; color: var(--fg);
+}
+.reel-play { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 4px 6px; min-width: 30px; }
+.reel-play:focus-visible, .reel-segs button:focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+.reel-segs { flex: 1; display: flex; gap: 4px; min-width: 0; }
+.reel-segs button { flex: 1; min-width: 0; height: 18px; background: none; border: 0; padding: 0; cursor: pointer; position: relative; }
+.reel-segs button::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: rgba(240, 221, 224, 0.28); }
+.reel-segs i { position: absolute; left: 0; top: 50%; height: 3px; margin-top: -1.5px; width: 0; background: var(--red); box-shadow: 0 0 8px var(--red); }
+.reel-segs button.done i { width: 100%; }
+.reel-segs button.on i { animation: segfill var(--dur, 3.8s) linear forwards; }
+.slot.reel.paused .reel-segs button.on i { animation-play-state: paused; }
+.reel-count { white-space: nowrap; color: var(--rose); }
+.cols { display: grid; grid-template-columns: 1fr; gap: 28px; }
+
+.gallery { display: flex; flex-direction: column; gap: 10px; }
+.stage .slot, .thumbs .slot { aspect-ratio: 16 / 10; }
+.thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.thumbs .cam { font-size: 9px; letter-spacing: 0.08em; top: 7px; left: 8px; }
+.thumbs .slot::before, .thumbs .slot::after { width: 9px; height: 9px; top: 6px; }
+.thumbs .slot::before { left: 6px; }
+.thumbs .slot::after { right: 6px; }
+.thumbs .slot { cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+.thumbs .slot:hover, .thumbs .slot:focus-visible { border-color: var(--rose); box-shadow: 0 0 24px rgba(179, 18, 43, 0.55); outline: none; }
+.view.enter .gallery.settled .slot { animation: none; }
+.hint { margin: 0; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+
+@media (min-width: 720px) {
+  .hero .slot { aspect-ratio: 16 / 10; }
+  .cols { grid-template-columns: 1fr 1fr; gap: 36px; }
+  .gallery { gap: 12px; }
+  .thumbs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+}
+
+.links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.meta .link { padding: 7px 14px; font-size: 11px; gap: 10px; }
+.link {
+  display: inline-flex; gap: 14px; align-items: center; text-decoration: none; align-self: flex-start;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--fg); border: 1px solid var(--red); padding: 12px 20px; transition: background 0.2s, box-shadow 0.2s;
+}
+.link span { color: var(--rose); }
+.link:hover { background: var(--red); color: #fff; box-shadow: 0 0 24px rgba(179, 18, 43, 0.6); }
+.link:hover span { color: #fff; }
+
+
+.lover-wrap { display: flex; flex-direction: column; gap: 14px; }
+.lover {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 26px 24px; text-decoration: none; color: var(--fg);
+  border: 1px solid var(--red); background: linear-gradient(135deg, rgba(122, 15, 31, 0.55), rgba(20, 4, 8, 0.7));
+  box-shadow: 0 0 34px rgba(179, 18, 43, 0.45), inset 0 0 30px rgba(179, 18, 43, 0.25);
+  animation: lovepulse 3.2s ease-in-out infinite;
+}
+.lover:hover { background: linear-gradient(135deg, var(--red), var(--blood)); }
+.lover .tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.24em; color: var(--rose); display: flex; align-items: center; gap: 10px; }
+.lover .tag i { font-style: normal; color: var(--red); font-size: 16px; animation: beat 1.3s ease-in-out infinite; display: inline-block; }
+.lover .nick { font-family: var(--font-serif); font-size: clamp(24px, 6vw, 34px); letter-spacing: 0.04em; overflow-wrap: anywhere; min-width: 0; }
+.lover .go { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; color: var(--rose); }
+.lover-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.abc {
+  position: relative; display: table; margin: 4px 0 26px 4px; padding: 10px 18px;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; color: var(--fg);
+  border: 1px solid var(--red); border-radius: 18px; background: linear-gradient(160deg, var(--blood), rgba(40, 6, 12, 0.9));
+  box-shadow: 0 0 24px rgba(179, 18, 43, 0.4); animation: bob 3.8s ease-in-out infinite;
+}
+.abc::after {
+  content: ""; position: absolute; top: -8px; left: 24px; width: 13px; height: 13px;
+  background: var(--blood); border-left: 1px solid var(--red); border-top: 1px solid var(--red);
+  transform: rotate(45deg) skew(12deg, 12deg);
+}
+.view.enter .abc { animation: pop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.25s both, bob 3.8s ease-in-out 0.9s infinite; }
+.lovers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 0; list-style: none; }
+.lovers a {
+  display: block; text-decoration: none; color: var(--fg); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.06em;
+  border: 1px solid var(--line); background: var(--surface); padding: 12px 14px; overflow-wrap: anywhere;
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.lovers a span { color: var(--rose); margin-right: 2px; }
+.lovers a:hover, .lovers a:focus-visible { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 0 22px rgba(179, 18, 43, 0.6); outline: none; }
+.lovers a:hover span { color: #fff; }
+.view.enter .lovers li { animation: pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(0.3s + var(--i, 0) * 0.07s); }
+.view.enter .lover { animation: pop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s both, lovepulse 3.2s ease-in-out 0.8s infinite; }
+@keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -9px; } }
+@keyframes lovepulse { 0%, 100% { box-shadow: 0 0 22px rgba(179, 18, 43, 0.35), inset 0 0 24px rgba(179, 18, 43, 0.2); } 50% { box-shadow: 0 0 46px rgba(224, 40, 70, 0.7), inset 0 0 36px rgba(179, 18, 43, 0.35); } }
+@keyframes beat { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.35); } 55% { transform: scale(1); } }
+@media (min-width: 720px) { .lovers { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.next {
+  align-self: flex-end; text-decoration: none; color: var(--rose);
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+  border-top: 1px solid var(--line); padding-top: 16px; width: 100%; text-align: right;
+}
+.next:hover { color: var(--fg); text-shadow: 0 0 12px var(--red); }
+
+footer { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- motion ---------- */
+@keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.12; } }
+@keyframes roll { from { transform: translateY(-160px); } to { transform: translateY(110vh); } }
+@keyframes flicker {
+  0%, 90%, 94%, 100% { opacity: 1; }
+  91% { opacity: 0.86; }
+  92% { opacity: 1; }
+  93% { opacity: 0.9; }
+}
+@keyframes glitch {
+  0%, 93%, 100% { transform: none; text-shadow: none; }
+  94% { transform: translateX(-3px); text-shadow: 3px 0 #ff2a4a, -3px 0 #2ad4ff; }
+  96% { transform: translateX(4px) skewX(-4deg); text-shadow: -3px 0 #ff2a4a, 3px 0 #2ad4ff; }
+  98% { transform: translateX(-1px); text-shadow: 2px 0 #ff2a4a, -2px 0 #2ad4ff; }
+}
+@keyframes burst {
+  0% { opacity: 0; transform: translateY(-3%); }
+  18% { opacity: 1; }
+  40% { opacity: 0.7; transform: translateY(2%); }
+  62% { opacity: 1; transform: translateY(-1%); }
+  100% { opacity: 0; transform: none; }
+}
+@keyframes tune {
+  0% { clip-path: inset(42% 0 46% 0); transform: translateX(-14px) skewX(6deg); filter: brightness(2.4) saturate(0); }
+  18% { clip-path: inset(8% 0 62% 0); transform: translateX(10px); filter: brightness(1.8) saturate(0.4); }
+  36% { clip-path: inset(56% 0 4% 0); transform: translateX(-7px) skewX(-3deg); }
+  55% { clip-path: inset(0 0 0 0); transform: translateX(5px); filter: brightness(1.4); }
+  80% { transform: translateX(-2px); filter: brightness(1.1); }
+  100% { clip-path: inset(0); transform: none; filter: none; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+@keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+@keyframes shake {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  35% { translate: 0 -4px; }
+  70% { translate: 0 0; }
+  72% { translate: -3px 0; rotate: -2deg; }
+  74% { translate: 3px 1px; rotate: 2deg; }
+  76% { translate: -2px 0; rotate: -1.5deg; }
+  78% { translate: 2px 0; rotate: 1deg; }
+  80% { translate: 0 0; rotate: 0deg; }
+}
+@keyframes flick { 0%, 70%, 100% { opacity: 1; } 72% { opacity: 0.3; } 74% { opacity: 1; } 76% { opacity: 0.5; } 78% { opacity: 1; } }
+@keyframes flyL { from { opacity: 0; translate: -90px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes flyIn { from { opacity: 0; translate: var(--fx, 0px) var(--fy, 24px); } to { opacity: 1; translate: 0 0; } }
+@keyframes typing { from { width: 0; } to { width: 10.5ch; } }
+@keyframes caret { 0%, 55% { border-right-color: var(--rose); } 56%, 100% { border-right-color: transparent; } }
+@keyframes track {
+  from { opacity: 0; letter-spacing: 0.8em; translate: -28px 0; }
+  to { opacity: 1; letter-spacing: 0.2em; translate: 0 0; }
+}
+@keyframes reelin {
+  0% { filter: brightness(2.4) saturate(0); transform: translateX(-10px) skewX(4deg); }
+  40% { filter: brightness(1.4); transform: translateX(8px); }
+  100% { filter: none; transform: none; }
+}
+@keyframes reelkb { from { scale: 1.02; translate: 0 0; } to { scale: 1.13; translate: var(--kx, -2%) var(--ky, -1%); } }
+@keyframes segfill { from { width: 0; } to { width: 100%; } }
+@keyframes reelsnow { 0% { opacity: 0.85; } 100% { opacity: 0.14; } }
+@keyframes soft { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
+@keyframes snowburst {
+  0%, 87%, 100% { opacity: 0.14; }
+  89% { opacity: 0.65; }
+  91% { opacity: 0.2; }
+  93% { opacity: 0.6; }
+  96% { opacity: 0.14; }
+}
+@keyframes imgglitch {
+  0%, 87%, 100% { transform: none; filter: none; }
+  89% { transform: translateX(-5px) skewX(3deg); filter: saturate(1.7) contrast(1.3); }
+  91% { transform: translateX(6px); filter: hue-rotate(-14deg); }
+  93% { transform: translateX(-2px) skewX(-2deg); filter: brightness(1.45); }
+  96% { transform: none; filter: none; }
+}
+@keyframes drift { from { scale: 1; translate: 0 0; } to { scale: 1.08; translate: -1.5% -1%; } }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 rgba(179, 18, 43, 0); } 50% { box-shadow: 0 0 20px rgba(179, 18, 43, 0.55); } }
+@keyframes nudge { 0%, 100% { translate: 0 0; } 50% { translate: 8px 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .dot, .slot .cam::before { opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div class="fx vig" aria-hidden="true"></div>
+<div class="fx hud" aria-hidden="true">
+  <i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+  <div class="tl"><span class="dot"></span><span class="rec">REC</span><span id="elapsed">00:00:00</span></div>
+  <div class="tr" id="channel">CH 01 PROFILE</div>
+  <div class="bl" id="clock">2026.11.07 00:00:00</div>
+  <div class="br">PLAY &#9654; SP</div>
+</div>
+
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="성인 확인">
+  <div class="gate-bars" aria-hidden="true"></div>
+  <span class="osd l" aria-hidden="true">&#9654; PLAY</span>
+  <span class="osd r" aria-hidden="true">AV-1</span>
+
+  <div class="gate-box" id="gate-load">
+    <p class="stand"><span class="dot"></span>PLEASE STAND BY</p>
+    <div class="meter" aria-hidden="true"><i id="gate-bar"></i></div>
+    <p class="pct" id="gate-pct" role="status">LOADING 0%</p>
+  </div>
+
+  <div class="gate-box" id="gate-ask" hidden>
+    <div class="gate-head">
+      <div class="badge" aria-hidden="true">19+</div>
+      <p class="gate-note">성인이 아닐 경우<br>책임지지 않습니다.</p>
+    </div>
+    <p class="gate-title" id="gate-title">
+      <span>이 페이지는 19세 미만은 접근 금지입니다.</span>
+      <span>당신은 성인입니까?</span>
+    </p>
+    <div class="gate-actions">
+      <button type="button" class="yes" id="gate-yes">네</button>
+      <button type="button" id="gate-no">아니오</button>
+    </div>
+  </div>
+</div>
+
+<div class="wm" aria-hidden="true" style="--wm:url(images/01.webp)"></div>
+
+<main inert>
+  <div class="top">
+    <div class="bar">
+      <span>Private recording</span>
+      <b>Adult only · 19+</b>
+    </div>
+    <nav aria-label="페이지">
+      <a href="#profile" data-page="profile">Profile</a>
+      <a href="#gallery" data-page="gallery">Gallery</a>
+      <a href="#love" data-page="love">Love</a>
+    </nav>
+  </div>
+
+  <section class="view" id="page-profile" data-page="profile">
+    <header class="who">
+    <div class="namerow">
+        <div class="nameline">
+          <h1>제노</h1>
+          <span class="adult">성인</span>
+        </div>
+        <a class="id" href="https://x.com/xen0_916" target="_blank" rel="noopener">@xen0_916</a>
+      </div>
+      <dl class="info">
+        <div class="row"><dt>ALIAS</dt><dd>삽살개 · 유죄남</dd></div>
+        <div class="row"><dt>NAME</dt><dd>이선제</dd></div>
+        <div class="row"><dt>JOB</dt><dd>Z 플랫폼 BJ</dd></div>
+      </dl>
+      <div class="meta cols">
+        <div>
+          <h2>Fetish</h2>
+          <ul class="tags trait">
+            <li>SADIST</li>
+            <li>BONDAGE</li>
+            <li>DADDY</li>
+          </ul>
+        </div>
+        <div>
+          <h2>Links</h2>
+          <div class="links">
+            <a class="link" href="https://x.com/xen0_916" target="_blank" rel="noopener">X <span>@xen0_916</span></a>
+            <a class="link" href="https://www.youtube.com/@BJ-XENO" target="_blank" rel="noopener">YOUTUBE <span>@BJ-XENO</span></a>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="cols">
+      <div>
+        <h2>Field</h2>
+        <ul class="tags like">
+          <li>NAI 5</li>
+          <li>PIX AI (ONLY VIDEO)</li>
+          <li>SUNO</li>
+          <li>YOUTUBE</li>
+          <li>Bot / RP</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Dislike</h2>
+        <ul class="tags dislike">
+          <li>내로남불</li>
+          <li>공주짓</li>
+          <li>뒷담화</li>
+          <li>이간질</li>
+          <li>정신병자</li>
+        </ul>
+      </div>
+    </div>
+    <div class="hero">
+      <figure class="slot reel" id="reel">
+        <span class="cam">CAM 01</span>
+        <div class="blurbg" aria-hidden="true"></div>
+        <img class="on" src="images/02.webp" alt="붉은 배경 앞에서 가시 줄기에 감긴 채 고개를 숙인 남자의 뒷모습" width="1200" height="821" style="--kx:-2.5%;--ky:-1.5%">
+        <img src="images/03.webp" alt="줄무늬 죄수복에 목줄과 사슬을 두르고 이를 드러내며 웃는 남자" width="1200" height="821" style="--kx:2.5%;--ky:1%">
+        <img class="p" src="images/04.webp" alt="손목이 묶여 위로 올려진 채 셔츠를 물고 웃는 남자" width="821" height="1200" style="--kx:-2%;--ky:1.5%">
+        <img src="images/05.webp" alt="붉은 배경에서 입마개와 목줄을 하고 손이 묶인 남자" width="1200" height="821" style="--kx:2.5%;--ky:-1%">
+        <img src="images/06.webp" alt="목을 잡힌 채 이를 드러낸 흰 머리 남자" width="1200" height="821" style="--kx:-2.5%;--ky:-1.5%">
+        <img src="images/07.webp" alt="붉은 배경에서 안대를 하고 어깨 너머로 웃는 흰 머리 남자의 뒷모습" width="1200" height="821" style="--kx:2.5%;--ky:1%">
+        <img src="images/08.webp" alt="검은 마스크를 쓰고 뒤돌아보는 노란 눈의 남자" width="1200" height="821" style="--kx:-2%;--ky:1.5%">
+        <img src="images/09.webp" alt="셔츠 차림으로 고개를 숙이고 웃는 근육질 남자" width="1200" height="821" style="--kx:2.5%;--ky:-1%">
+        <img src="images/10.webp" alt="트럼프 카드를 들고 어깨 너머로 웃는 남자의 뒷모습" width="1200" height="821" style="--kx:-2.5%;--ky:-1.5%">
+        <img class="p" src="images/11.webp" alt="가로등 불빛 아래 옥상에서 모자를 눌러쓰고 고개를 숙인 남자" width="821" height="1200" style="--kx:2.5%;--ky:1%">
+        <img src="images/12.webp" alt="빨간 줄무늬 트랙재킷을 입고 담배를 문 채 거리에 앉은 남자" width="1200" height="821" style="--kx:-2%;--ky:1.5%">
+        <img src="images/13.webp" alt="야구모자를 쓰고 담배를 문 채 돌담 앞에 쪼그려 앉은 남자" width="1200" height="821" style="--kx:2.5%;--ky:-1%">
+        <img src="images/14.webp" alt="검은 마스크를 쓰고 휴대폰으로 셀카를 찍는 남자" width="1200" height="821" style="--kx:-2.5%;--ky:-1.5%">
+        <img src="images/15.webp" alt="아이스바를 핥고 있는 남자의 옆모습" width="1200" height="821" style="--kx:2.5%;--ky:1%">
+        <img src="images/16.webp" alt="창가에서 서로 얼굴을 가까이 마주한 두 남자" width="1200" height="821" style="--kx:-2%;--ky:1.5%">
+        <div class="reel-ui">
+          <button type="button" class="reel-play" id="reel-play" aria-label="일시정지">&#10074;&#10074;</button>
+          <div class="reel-segs"><button type="button" class="on" aria-label="장면 1"><i></i></button><button type="button" aria-label="장면 2"><i></i></button><button type="button" aria-label="장면 3"><i></i></button><button type="button" aria-label="장면 4"><i></i></button><button type="button" aria-label="장면 5"><i></i></button><button type="button" aria-label="장면 6"><i></i></button><button type="button" aria-label="장면 7"><i></i></button><button type="button" aria-label="장면 8"><i></i></button><button type="button" aria-label="장면 9"><i></i></button><button type="button" aria-label="장면 10"><i></i></button><button type="button" aria-label="장면 11"><i></i></button><button type="button" aria-label="장면 12"><i></i></button><button type="button" aria-label="장면 13"><i></i></button><button type="button" aria-label="장면 14"><i></i></button><button type="button" aria-label="장면 15"><i></i></button></div>
+          <span class="reel-count" id="reel-count">01/15</span>
+        </div>
+      </figure>
+    </div>
+    <a class="next" href="#gallery">Gallery <span class="arr">&rarr;</span></a>
+  </section>
+  <section class="view" id="page-gallery" data-page="gallery" hidden>
+    <div class="gallery" id="gallery">
+      <div class="stage">
+        <figure class="slot"><span class="cam">CAM 02</span><img src="images/17.webp" alt="흑백 숲의 도리이 앞에서 여우 가면을 얼굴 옆에 든 남자" width="1200" height="821" loading="lazy"></figure>
+      </div>
+      <div class="thumbs">
+        <figure class="slot p"><span class="cam">CAM 03</span><div class="blurbg" aria-hidden="true"></div><img src="images/18.webp" alt="파란 큰 글씨 포스터 앞에서 재킷을 걸치고 앉은 남자" width="821" height="1200" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 04</span><img src="images/19.webp" alt="물이 찬 타일 바닥 위에서 서로 가까이 붙어 있는 두 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot p"><span class="cam">CAM 05</span><div class="blurbg" aria-hidden="true"></div><img src="images/20.webp" alt="건반이 있는 방에서 입을 맞추는 남자와 여자" width="821" height="1200" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 06</span><img src="images/21.webp" alt="침대 위에서 몸을 맞대고 있는 두 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 07</span><img src="images/22.webp" alt="서로 얼굴을 맞대고 안겨 있는 남자와 여자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 08</span><img src="images/23.webp" alt="분홍 머리의 남자가 팔에 얼굴을 기대고 있는 모습" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot p"><span class="cam">CAM 09</span><div class="blurbg" aria-hidden="true"></div><img src="images/24.webp" alt="군번줄을 한 남자가 금발 남자와 입을 맞추려는 모습" width="821" height="1200" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 10</span><img src="images/25.webp" alt="분홍 스웨터를 입은 남자와 입을 맞추는 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 11</span><img src="images/26.webp" alt="복숭아를 핥는 셔츠 차림의 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 12</span><img src="images/27.webp" alt="꽃다발을 안고 비눗방울 사이에서 위를 올려다보는 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot p"><span class="cam">CAM 13</span><div class="blurbg" aria-hidden="true"></div><img src="images/28.webp" alt="빗속에서 공을 차다 넘어져 입을 맞추는 두 남자의 세 컷 만화" width="821" height="1200" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 14</span><img src="images/29.webp" alt="소프트 아이스크림을 먹는 셔츠 차림의 남자 옆모습" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 15</span><img src="images/30.webp" alt="분홍 배경에서 병에 든 흰 액체를 입으로 받는 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 16</span><img src="images/31.webp" alt="반짝이는 조명 앞에서 입을 맞추려는 두 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot p"><span class="cam">CAM 17</span><div class="blurbg" aria-hidden="true"></div><img src="images/32.webp" alt="침대 위에서 반바지 차림으로 엎드려 있는 남자의 뒷모습" width="821" height="1200" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 18</span><img src="images/33.webp" alt="파란 꽃 사이에서 투명 우산을 쓰고 위를 올려다보는 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 19</span><img src="images/34.webp" alt="꽃다발을 안고 노을 아래 비눗방울 속에 선 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 20</span><img src="images/35.webp" alt="분홍 털 스웨터를 입고 턱을 괴는 금발 남자" width="1200" height="821" loading="lazy"></figure>
+        <figure class="slot"><span class="cam">CAM 21</span><img src="images/36.webp" alt="고양이 쿠션을 끌어안고 안락의자에 기대 있는 남자" width="1200" height="821" loading="lazy"></figure>
+      </div>
+      <p class="hint">작은 사진을 누르면 위 큰 화면과 자리가 바뀌어요</p>
+    </div>
+    <a class="next" href="#love">Love <span class="arr">&rarr;</span></a>
+  </section>
+  <section class="view" id="page-love" data-page="love" hidden>
+    <div class="lover-wrap">
+      <h2>Bae</h2>
+      <a class="lover" href="https://x.com/co0_916" target="_blank" rel="noopener">
+        <div class="lover-main">
+          <span class="tag"><i>&#9829;</i> BAE</span>
+          <span class="nick">@co0_916</span>
+        </div>
+        <span class="go">X &rarr;</span>
+      </a>
+    </div>
+    <div>
+      <h2>BFF</h2>
+      <p class="abc">ABC 순서로 기재되어 있습니다</p>
+      <ul class="lovers">
+        <li style="--i:0"><a href="https://x.com/ASANBESTME" target="_blank" rel="noopener"><span>@</span>ASANBESTME</a></li>
+        <li style="--i:1"><a href="https://x.com/cheeesee_shya" target="_blank" rel="noopener"><span>@</span>cheeesee_shya</a></li>
+        <li style="--i:2"><a href="https://x.com/dotori_z" target="_blank" rel="noopener"><span>@</span>dotori_z</a></li>
+        <li style="--i:3"><a href="https://x.com/M__Ryang" target="_blank" rel="noopener"><span>@</span>M__Ryang</a></li>
+        <li style="--i:4"><a href="https://x.com/mu_0_k" target="_blank" rel="noopener"><span>@</span>mu_0_k</a></li>
+        <li style="--i:5"><a href="https://x.com/Obsession_Zt" target="_blank" rel="noopener"><span>@</span>Obsession_Zt</a></li>
+        <li style="--i:6"><a href="https://x.com/seugooooi" target="_blank" rel="noopener"><span>@</span>seugooooi</a></li>
+        <li style="--i:7"><a href="https://x.com/Xx___yuu" target="_blank" rel="noopener"><span>@</span>Xx___yuu</a></li>
+      </ul>
+    </div>
+    <a class="next" href="#profile">Profile <span class="arr">&rarr;</span></a>
+  </section>
+  <footer>
+    <span>19세 미만 열람 불가</span>
+  </footer>
+</main>
+
+<script>
+(function () {
+  // age gate: colour bars + loading meter, then the question. The page stays inert until "네".
+  var gate = document.getElementById("gate");
+  var mainEl = document.querySelector("main");
+  var loadBox = document.getElementById("gate-load");
+  var askBox = document.getElementById("gate-ask");
+  var gateReduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function onYes() {
+    mainEl.removeAttribute("inert");
+    gate.classList.add("out");
+    if (typeof reelGo === "function") reelGo(0);
+    try { if (location.hash !== "#profile") location.hash = "profile"; } catch (e) {}
+    apply("profile");
+    setTimeout(function () { gate.remove(); }, 480);
+  }
+  function onNo() {
+    try { window.close(); } catch (e) {}
+    var junk = document.querySelectorAll("main, .hud, .vig");
+    for (var q = 0; q < junk.length; q++) junk[q].remove();
+    askBox.innerHTML =
+      '<p class="gate-title"><span>접근이 차단되었습니다.</span></p>' +
+      '<p class="gate-note">이 페이지는 성인만 볼 수 있어요. 창을 닫아 주세요.</p>';
+  }
+  function reveal() {
+    loadBox.hidden = true;
+    askBox.hidden = false;
+    var yes = document.getElementById("gate-yes");
+    yes.addEventListener("click", onYes);
+    document.getElementById("gate-no").addEventListener("click", onNo);
+    yes.focus();
+  }
+  if (gateReduce) {
+    reveal();
+  } else {
+    var pct = 0;
+    var barEl = document.getElementById("gate-bar");
+    var pctEl = document.getElementById("gate-pct");
+    var loader = setInterval(function () {
+      pct = Math.min(100, pct + Math.random() * 9 + 3);
+      barEl.style.width = pct + "%";
+      pctEl.textContent = "LOADING " + Math.floor(pct) + "%";
+      if (pct >= 100) { clearInterval(loader); setTimeout(reveal, 400); }
+    }, 160);
+  }
+
+  var pages = ["profile", "gallery", "love"];
+  var names = { profile: "CH 01 PROFILE", gallery: "CH 02 GALLERY", love: "CH 03 LOVE" };
+  var views = document.querySelectorAll(".view");
+  var tabs = document.querySelectorAll("nav a");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var swapTimer, endTimer, current = null;
+
+  // gallery: tapping a small photo swaps places with the big one (FLIP animation)
+  var gal = document.getElementById("gallery");
+  var stage = gal.querySelector(".stage");
+  var thumbs = gal.querySelector(".thumbs");
+  var galBusy = false, settleTimer;
+  function settle() { gal.classList.add("settled"); }
+  function refresh() {
+    var list = thumbs.querySelectorAll(".slot");
+    for (var i = 0; i < list.length; i++) {
+      list[i].setAttribute("role", "button");
+      list[i].setAttribute("tabindex", "0");
+      list[i].setAttribute("aria-label", "이 사진을 큰 화면으로 보기");
+    }
+    var big = stage.querySelector(".slot");
+    big.removeAttribute("role"); big.removeAttribute("tabindex"); big.removeAttribute("aria-label");
+  }
+  function fly(el, from, to, z, opts) {
+    el.style.zIndex = z;
+    el.style.transformOrigin = "0 0";
+    return el.animate([
+      { transform: "translate(" + (from.left - to.left) + "px," + (from.top - to.top) + "px) scale(" + (from.width / to.width) + "," + (from.height / to.height) + ")" },
+      { transform: "none" }
+    ], opts);
+  }
+  function swap(t) {
+    if (galBusy) return;
+    settle();
+    var top = stage.getBoundingClientRect().top;
+    if (top < 56) window.scrollBy(0, top - 64);
+    var big = stage.querySelector(".slot");
+    var r1 = big.getBoundingClientRect(), r2 = t.getBoundingClientRect();
+    var ref = t.nextSibling;
+    thumbs.insertBefore(big, ref);
+    stage.appendChild(t);
+    refresh();
+    if (reduce || !big.animate) return;
+    var n1 = big.getBoundingClientRect(), n2 = t.getBoundingClientRect();
+    galBusy = true;
+    var opts = { duration: 750, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" };
+    var a1 = fly(big, r1, n1, 5, opts);
+    var a2 = fly(t, r2, n2, 6, opts);
+    var left = 2;
+    function done() {
+      left--;
+      if (left > 0) return;
+      big.style.zIndex = ""; t.style.zIndex = "";
+      big.style.transformOrigin = ""; t.style.transformOrigin = "";
+      galBusy = false;
+    }
+    a1.onfinish = done; a2.onfinish = done;
+    a1.oncancel = done; a2.oncancel = done;
+  }
+  thumbs.addEventListener("click", function (ev) {
+    var t = ev.target.closest(".slot");
+    if (t && thumbs.contains(t)) swap(t);
+  });
+  thumbs.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    var t = ev.target.closest(".slot");
+    if (t && thumbs.contains(t)) { ev.preventDefault(); swap(t); }
+  });
+  refresh();
+
+  // portrait photos in the gallery: blurred backdrop built from the photo itself
+  var pSlots = gal.querySelectorAll(".slot.p");
+  for (var pi = 0; pi < pSlots.length; pi++) {
+    var pImg = pSlots[pi].querySelector("img");
+    pSlots[pi].querySelector(".blurbg").style.backgroundImage = 'url("' + pImg.src + '")';
+  }
+
+  // main reel: photos play in sequence like a video; tap to pause
+  var reelEl = document.getElementById("reel");
+  var reelSlides = reelEl.querySelectorAll("img");
+  var reelSegs = reelEl.querySelectorAll(".reel-segs button");
+  var reelCount = document.getElementById("reel-count");
+  var reelBg = reelEl.querySelector(".blurbg");
+  var reelPlay = document.getElementById("reel-play");
+  var reelIdx = 0, reelCutTimer;
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function reelGo(n) {
+    reelIdx = (n + reelSlides.length) % reelSlides.length;
+    for (var i = 0; i < reelSlides.length; i++) reelSlides[i].classList.toggle("on", i === reelIdx);
+    for (var j = 0; j < reelSegs.length; j++) {
+      reelSegs[j].classList.remove("on");
+      reelSegs[j].classList.toggle("done", j < reelIdx);
+    }
+    void reelEl.offsetWidth;
+    reelSegs[reelIdx].classList.add("on");
+    reelCount.textContent = two(reelIdx + 1) + "/" + two(reelSlides.length);
+    reelEl.classList.toggle("pt", reelSlides[reelIdx].classList.contains("p"));
+    reelBg.style.backgroundImage = 'url("' + reelSlides[reelIdx].src + '")';
+    reelEl.classList.remove("cut");
+    void reelEl.offsetWidth;
+    reelEl.classList.add("cut");
+    clearTimeout(reelCutTimer);
+    reelCutTimer = setTimeout(function () { reelEl.classList.remove("cut"); }, 420);
+  }
+  function reelToggle() {
+    var p = reelEl.classList.toggle("paused");
+    reelPlay.innerHTML = p ? "&#9654;" : "&#10074;&#10074;";
+    reelPlay.setAttribute("aria-label", p ? "재생" : "일시정지");
+  }
+  reelEl.addEventListener("animationend", function (ev) {
+    if (ev.animationName === "segfill") reelGo(reelIdx + 1);
+  });
+  reelEl.addEventListener("click", function (ev) {
+    if (ev.target.closest(".reel-ui")) return;
+    reelToggle();
+  });
+  reelPlay.addEventListener("click", reelToggle);
+  for (var rs = 0; rs < reelSegs.length; rs++) {
+    (function (k) { reelSegs[k].addEventListener("click", function () { reelGo(k); }); })(rs);
+  }
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function apply(h) {
+    for (var i = 0; i < views.length; i++) {
+      var on = views[i].getAttribute("data-page") === h;
+      views[i].hidden = !on;
+      views[i].classList.remove("enter");
+      if (on) { void views[i].offsetWidth; views[i].classList.add("enter"); }
+    }
+    for (var j = 0; j < tabs.length; j++) {
+      if (tabs[j].getAttribute("data-page") === h) tabs[j].setAttribute("aria-current", "page");
+      else tabs[j].removeAttribute("aria-current");
+    }
+    if (h === "gallery") {
+      gal.classList.remove("settled");
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(settle, 1700);
+    }
+    var chEl = document.getElementById("channel");
+    if (chEl) chEl.textContent = names[h];
+    window.scrollTo(0, 0);
+    current = h;
+  }
+
+  function route() {
+    var h = location.hash.replace("#", "");
+    if (pages.indexOf(h) === -1) h = "profile";
+    if (h === current) return;
+    clearTimeout(swapTimer); clearTimeout(endTimer);
+    apply(h);
+  }
+  window.addEventListener("hashchange", route);
+  route();
+
+  // timecode
+  var t0 = Date.now();
+  function tick() {
+    if (!document.getElementById("elapsed")) return;
+    var s = Math.floor((Date.now() - t0) / 1000);
+    document.getElementById("elapsed").textContent = pad(Math.floor(s / 3600)) + ":" + pad(Math.floor(s / 60) % 60) + ":" + pad(s % 60);
+    var d = new Date();
+    document.getElementById("clock").textContent =
+      d.getFullYear() + "." + pad(d.getMonth() + 1) + "." + pad(d.getDate()) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // static noise + scanlines, photo slots only
+  var slots = document.querySelectorAll(".slot");
+  var snows = [];
+  for (var k = 0; k < slots.length; k++) {
+    var c = document.createElement("canvas");
+    c.className = "snow"; c.width = 96; c.height = 64;
+    var ln = document.createElement("div");
+    ln.className = "lines";
+    slots[k].appendChild(c);
+    slots[k].appendChild(ln);
+    var cx = c.getContext("2d");
+    snows.push({ el: c, ctx: cx, img: cx.createImageData(c.width, c.height) });
+  }
+  function snow() {
+    for (var n = 0; n < snows.length; n++) {
+      var s = snows[n];
+      if (s.el.offsetParent === null) continue;
+      var d = s.img.data;
+      for (var i = 0; i < d.length; i += 4) {
+        var v = Math.random() * 255;
+        d[i] = v; d[i + 1] = v * 0.7; d[i + 2] = v * 0.75; d[i + 3] = 255;
+      }
+      s.ctx.putImageData(s.img, 0, 0);
+    }
+  }
+  snow();
+  if (!reduce) setInterval(snow, 90);
+})();
+</script>
+
+<script>
+(function () {
+  // Deterrents only: nothing here can truly stop someone who wants the source.
+  var locked = false;
+  function lock() {
+    if (locked) return;
+    locked = true;
+    try {
+      var n = document.querySelectorAll("main, .hud, .vig, .gate");
+      for (var i = 0; i < n.length; i++) n[i].remove();
+      var imgs = document.querySelectorAll("img");
+      for (var j = 0; j < imgs.length; j++) imgs[j].remove();
+    } catch (e) {}
+    var d = document.createElement("div");
+    d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:#0d0205;color:#f0dde0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font:16px/1.7 system-ui,sans-serif";
+    d.textContent = "개발자 도구가 감지되어 페이지를 닫았어요. 개발자 도구를 끄고 새로고침해 주세요.";
+    document.body.appendChild(d);
+  }
+  function stop(e) { e.preventDefault(); }
+  document.addEventListener("contextmenu", stop);
+  document.addEventListener("dragstart", stop);
+  document.addEventListener("selectstart", stop);
+  document.addEventListener("copy", stop);
+  document.addEventListener("cut", stop);
+  document.addEventListener("keydown", function (e) {
+    var k = (e.key || "").toLowerCase();
+    var mod = e.ctrlKey || e.metaKey;
+    var bad = e.key === "F12" ||
+      (mod && e.shiftKey && (k === "i" || k === "j" || k === "c" || k === "k")) ||
+      (mod && e.altKey && (k === "i" || k === "j" || k === "c" || k === "u")) ||
+      (mod && (k === "u" || k === "s" || k === "p"));
+    if (bad) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  // an open debugger pauses on "debugger"; the pause shows up as elapsed time
+  setInterval(function () {
+    var t = performance.now();
+    (function () { debugger; })();
+    if (performance.now() - t > 120) lock();
+  }, 1000);
+
+  // docked devtools shrink the page inside the window (desktop, top-level page only)
+  var desktop = window.top === window.self && window.matchMedia && window.matchMedia("(pointer: fine)").matches;
+  if (desktop) {
+    setInterval(function () {
+      if (window.outerWidth - window.innerWidth > 200 || window.outerHeight - window.innerHeight > 300) lock();
+    }, 1000);
+  }
+})();
+</script>
+</body>
+</html>
